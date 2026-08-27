@@ -368,6 +368,15 @@ footer { border-top: 1px solid var(--border); padding: 50px 6vw; }
 .notif-text b { color: var(--text); }
 .notif-time { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
 
+/* ---------- VERIFICATION BUTTON ---------- */
+.verification-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;}
+.verification-badge.verified { background: rgba(34, 197, 94, 0.12); color: #22c55e;}
+.verification-badge.unverified { background: rgba(234, 179, 8, 0.12); color: #eab308;}
+
+/* ---------- INVITE MODEl ---------- */
+.modal-overlay {position: fixed; inset: 0; background: rgba(0, 0, 0, 0.65); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;}
+.invite-modal {width: 100%; max-width: 460px;}
+
 /* ---------- SETTINGS ---------- */
 .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid var(--border); }
 .settings-row:last-child { border-bottom: none; }
