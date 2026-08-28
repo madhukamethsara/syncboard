@@ -8,6 +8,7 @@ import {
   sendTeamInvitation,
   updateMemberRole,
   createTeam,
+  getTeamInvitations,
 } from "../api/teamApi";
 
 export default function Team() {
@@ -16,30 +17,22 @@ export default function Team() {
   const [teams, setTeams] = useState([]);
   const [currentTeamId, setCurrentTeamId] = useState(null);
   const [team, setTeam] = useState(null);
+  const [invitations, setInvitations] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
-  // =========================
   // INVITE MEMBER STATES
-  // =========================
-
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviteLoading, setInviteLoading] = useState(false);
 
-  // =========================
   // CREATE TEAM STATES
-  // =========================
-
   const [createOpen, setCreateOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
-  // =========================
   // LOAD TEAMS
-  // =========================
-
   useEffect(() => {
     loadTeams();
   }, []);
@@ -61,6 +54,7 @@ export default function Team() {
       } else {
         setCurrentTeamId(null);
         setTeam(null);
+        setInvitations([]);
       }
     } catch (error) {
       console.error("Load teams error:", error);
@@ -70,26 +64,35 @@ export default function Team() {
     }
   };
 
-  // =========================
   // LOAD ONE TEAM
-  // =========================
-
   const loadTeam = async (teamId) => {
     try {
       const data = await getTeamById(teamId);
 
       setTeam(data.team);
       setCurrentTeamId(teamId);
+
+      await loadInvitations(teamId);
     } catch (error) {
       console.error("Load team error:", error);
       toast(error.message || "Failed to load team");
     }
   };
 
-  // =========================
-  // CREATE TEAM
-  // =========================
+  // LOAD INVITATIONS
+  const loadInvitations = async (teamId) => {
+    try {
+      const data = await getTeamInvitations(teamId);
 
+      setInvitations(data.invitations);
+    } catch (error) {
+      console.error("Load invitations error:", error);
+
+      setInvitations([]);
+    }
+  };
+
+  // CREATE TEAM
   const handleCreateTeam = async () => {
     try {
       if (!teamName.trim()) {
@@ -106,12 +109,12 @@ export default function Team() {
       setTeamName("");
       setCreateOpen(false);
 
-      // Reload all teams
+      // RELOAD TEAMS
       const teamsData = await getTeams();
 
       setTeams(teamsData.teams);
 
-      // Automatically select newly created team
+      // SELECT NEW TEAM
       if (data.team?._id) {
         await loadTeam(data.team._id);
       }
@@ -123,10 +126,7 @@ export default function Team() {
     }
   };
 
-  // =========================
   // SEND INVITATION
-  // =========================
-
   const handleSendInvitation = async () => {
     try {
       if (!inviteEmail.trim()) {
@@ -152,6 +152,9 @@ export default function Team() {
       setInviteEmail("");
       setInviteRole("member");
       setInviteOpen(false);
+
+      // RELOAD INVITATIONS
+      await loadInvitations(currentTeamId);
     } catch (error) {
       console.error("Invite error:", error);
       toast(error.message || "Failed to send invitation");
@@ -160,10 +163,7 @@ export default function Team() {
     }
   };
 
-  // =========================
   // CHANGE MEMBER ROLE
-  // =========================
-
   const handleRoleChange = async (member, role) => {
     try {
       await updateMemberRole(
@@ -181,10 +181,7 @@ export default function Team() {
     }
   };
 
-  // =========================
   // LOADING
-  // =========================
-
   if (loading) {
     return (
       <div className="page-pad view active">
@@ -196,10 +193,7 @@ export default function Team() {
   return (
     <div className="page-pad view active">
 
-      {/* =========================
-          PAGE HEADER
-      ========================= */}
-
+      {/* PAGE HEADER */}
       <div className="page-title-row">
         <div>
           <h1>Teams</h1>
@@ -232,10 +226,7 @@ export default function Team() {
         </div>
       </div>
 
-      {/* =========================
-          TEAM / MEMBER GRID
-      ========================= */}
-
+      {/* TEAM AND MEMBER GRID */}
       <div
         className="grid-2"
         style={{
@@ -244,10 +235,7 @@ export default function Team() {
         }}
       >
 
-        {/* =========================
-            TEAM LIST
-        ========================= */}
-
+        {/* TEAM LIST */}
         <div className="panel">
           <h3>Teams</h3>
 
@@ -301,10 +289,7 @@ export default function Team() {
           )}
         </div>
 
-        {/* =========================
-            MEMBER LIST
-        ========================= */}
-
+        {/* MEMBER LIST */}
         <div className="panel">
           {!team ? (
             <p className="sub">
@@ -319,9 +304,7 @@ export default function Team() {
               <div>
                 {team.members.map((member) => {
                   const user = member.user;
-
-                  const isOwner =
-                    member.role === "owner";
+                  const isOwner = member.role === "owner";
 
                   return (
                     <div
@@ -329,8 +312,7 @@ export default function Team() {
                       key={member._id}
                     >
 
-                      {/* Avatar */}
-
+                      {/* AVATAR */}
                       <div
                         className="avatar"
                         style={{
@@ -360,8 +342,7 @@ export default function Team() {
                         )}
                       </div>
 
-                      {/* User information */}
-
+                      {/* USER INFORMATION */}
                       <div className="member-info">
                         <div className="m-name">
                           {user.name}
@@ -372,8 +353,7 @@ export default function Team() {
                         </div>
                       </div>
 
-                      {/* Member actions */}
-
+                      {/* MEMBER ACTIONS */}
                       <div className="m-actions">
                         <span
                           className={`pill pill-${member.role}`}
@@ -416,10 +396,70 @@ export default function Team() {
         </div>
       </div>
 
-      {/* =========================
-          TEAM ACTIVITY
-      ========================= */}
+      {/* PENDING INVITATIONS */}
+      {team && (
+        <div
+          className="panel"
+          style={{
+            marginTop: 16,
+          }}
+        >
+          <h3>Pending Invitations</h3>
 
+          {invitations.length === 0 ? (
+            <p className="sub">
+              No pending invitations for this team.
+            </p>
+          ) : (
+            <div>
+              {invitations.map((invitation) => (
+                <div
+                  className="member-row"
+                  key={invitation._id}
+                >
+
+                  {/* INVITATION AVATAR */}
+                  <div
+                    className="avatar"
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {invitation.email
+                      ?.charAt(0)
+                      .toUpperCase()}
+                  </div>
+
+                  {/* INVITATION INFORMATION */}
+                  <div className="member-info">
+                    <div className="m-name">
+                      {invitation.email}
+                    </div>
+
+                    <div className="m-email">
+                      Invited as {invitation.role}
+                    </div>
+                  </div>
+
+                  {/* INVITATION STATUS */}
+                  <div className="m-actions">
+                    <span className="pill">
+                      Pending
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TEAM ACTIVITY */}
       <div
         className="panel"
         style={{
@@ -449,10 +489,7 @@ export default function Team() {
         </div>
       </div>
 
-      {/* =========================
-          CREATE TEAM POPUP
-      ========================= */}
-
+      {/* CREATE TEAM POPUP */}
       {createOpen && (
         <div
           className="modal-overlay"
@@ -515,10 +552,7 @@ export default function Team() {
         </div>
       )}
 
-      {/* =========================
-          INVITE MEMBER POPUP
-      ========================= */}
-
+      {/* INVITE MEMBER POPUP */}
       {inviteOpen && (
         <div
           className="modal-overlay"
