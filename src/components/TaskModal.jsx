@@ -1,86 +1,418 @@
-import { useEffect, useState } from 'react';
-import { useApp } from '../AppContext';
+import {
+  useEffect,
+  useState,
+} from "react";
 
-const EMPTY = { title: '', desc: '', priority: 'Medium', status: 'todo', due: '2026-08-20', assignee: '', labels: '' };
+import { useApp } from "../AppContext";
 
-export default function TaskModal({ editingTaskId, defaultStatus, currentBoardId, onClose }) {
-  const { users, tasks, currentUser, saveTask, toast } = useApp();
-  const [form, setForm] = useState(EMPTY);
+const EMPTY = {
+  title: "",
+  description: "",
+  priority: "medium",
+  columnId: "",
+  dueDate: "",
+  assignedTo: "",
+};
+
+export default function TaskModal({
+  editingTaskId,
+  defaultStatus,
+  currentBoardId,
+  onClose,
+}) {
+  const {
+    users,
+    tasks,
+    currentUser,
+    columnsForBoard,
+    saveTask,
+    toast,
+  } = useApp();
+
+  const columns =
+    columnsForBoard(
+      currentBoardId
+    );
+
+  const [form, setForm] =
+    useState(EMPTY);
+
+  const [saving, setSaving] =
+    useState(false);
 
   useEffect(() => {
     if (editingTaskId) {
-      const t = tasks.find((x) => x.id === editingTaskId);
-      if (t) {
-        setForm({
-          title: t.title, desc: t.desc, priority: t.priority, status: t.status,
-          due: t.due, assignee: t.assignee, labels: t.labels.join(', '),
-        });
-      }
-    } else {
-      setForm({ ...EMPTY, status: defaultStatus || 'todo', assignee: currentUser.id });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingTaskId, defaultStatus]);
+      const task =
+        tasks.find(
+          (item) =>
+            item._id ===
+            editingTaskId
+        );
 
-  function update(field, value) {
-    setForm((f) => ({ ...f, [field]: value }));
+      if (!task) {
+        return;
+      }
+
+      const columnId =
+        typeof task.column ===
+        "object"
+          ? task.column?._id
+          : task.column;
+
+      const assignedTo =
+        typeof task.assignedTo ===
+        "object"
+          ? task.assignedTo?._id
+          : task.assignedTo;
+
+      let dueDate = "";
+
+      if (task.dueDate) {
+        dueDate =
+          new Date(
+            task.dueDate
+          )
+            .toISOString()
+            .split("T")[0];
+      }
+
+      setForm({
+        title:
+          task.title || "",
+
+        description:
+          task.description ||
+          "",
+
+        priority:
+          task.priority ||
+          "medium",
+
+        columnId:
+          columnId || "",
+
+        dueDate,
+
+        assignedTo:
+          assignedTo || "",
+      });
+
+      return;
+    }
+
+    const defaultColumnId =
+      defaultStatus ||
+      columns[0]?._id ||
+      "";
+
+    setForm({
+      ...EMPTY,
+
+      columnId:
+        defaultColumnId,
+
+      assignedTo:
+        currentUser?._id ||
+        currentUser?.id ||
+        "",
+    });
+  }, [
+    editingTaskId,
+    defaultStatus,
+    currentBoardId,
+    tasks,
+    columns,
+    currentUser,
+  ]);
+
+  function update(
+    field,
+    value
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
   }
 
-  function handleSave() {
-    const title = form.title.trim();
-    if (!title) { toast('Task title is required'); return; }
-    const labels = form.labels.split(',').map((s) => s.trim()).filter(Boolean);
-    saveTask({
-      title,
-      desc: form.desc.trim(),
-      priority: form.priority,
-      status: form.status,
-      due: form.due || '2026-08-20',
-      assignee: form.assignee,
-      labels,
-    }, editingTaskId, currentBoardId);
-    onClose();
+  async function handleSave() {
+    const title =
+      form.title.trim();
+
+    if (!title) {
+      toast(
+        "Task title is required"
+      );
+
+      return;
+    }
+
+    if (!form.columnId) {
+      toast(
+        "Please select a column"
+      );
+
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const taskData = {
+        title,
+
+        description:
+          form.description.trim(),
+
+        priority:
+          form.priority,
+
+        columnId:
+          form.columnId,
+
+        assignedTo:
+          form.assignedTo ||
+          null,
+
+        dueDate:
+          form.dueDate ||
+          null,
+      };
+
+      await saveTask(
+        taskData,
+        editingTaskId,
+        currentBoardId
+      );
+
+      onClose();
+    } catch (error) {
+      console.error(
+        "FAILED TO SAVE TASK:",
+        error
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
     <div className="modal-overlay active">
       <div className="modal">
         <div className="modal-head">
-          <h3>{editingTaskId ? 'Edit Task' : 'Create Task'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3>
+            {editingTaskId
+              ? "Edit Task"
+              : "Create Task"}
+          </h3>
+
+          <button
+            className="modal-close"
+            onClick={onClose}
+            disabled={saving}
+          >
+            ✕
+          </button>
         </div>
+
         <div className="modal-body">
-          <div className="field"><label>Task title</label><input type="text" placeholder="e.g. Design login screen" value={form.title} onChange={(e) => update('title', e.target.value)} /></div>
-          <div className="field"><label>Description</label><textarea placeholder="Add more detail..." value={form.desc} onChange={(e) => update('desc', e.target.value)} /></div>
+          <div className="field">
+            <label>
+              Task title
+            </label>
+
+            <input
+              type="text"
+              placeholder="e.g. Design login screen"
+              value={
+                form.title
+              }
+              onChange={(e) =>
+                update(
+                  "title",
+                  e.target.value
+                )
+              }
+            />
+          </div>
+
+          <div className="field">
+            <label>
+              Description
+            </label>
+
+            <textarea
+              placeholder="Add more detail..."
+              value={
+                form.description
+              }
+              onChange={(e) =>
+                update(
+                  "description",
+                  e.target.value
+                )
+              }
+            />
+          </div>
+
           <div className="field-grid">
             <div className="field">
-              <label>Priority</label>
-              <select value={form.priority} onChange={(e) => update('priority', e.target.value)}>
-                <option>Low</option><option>Medium</option><option>High</option>
+              <label>
+                Priority
+              </label>
+
+              <select
+                value={
+                  form.priority
+                }
+                onChange={(e) =>
+                  update(
+                    "priority",
+                    e.target.value
+                  )
+                }
+              >
+                <option value="low">
+                  Low
+                </option>
+
+                <option value="medium">
+                  Medium
+                </option>
+
+                <option value="high">
+                  High
+                </option>
               </select>
             </div>
+
             <div className="field">
-              <label>Status</label>
-              <select value={form.status} onChange={(e) => update('status', e.target.value)}>
-                <option value="todo">To Do</option><option value="doing">Doing</option><option value="done">Done</option>
+              <label>
+                Column
+              </label>
+
+              <select
+                value={
+                  form.columnId
+                }
+                onChange={(e) =>
+                  update(
+                    "columnId",
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Select column
+                </option>
+
+                {columns.map(
+                  (column) => (
+                    <option
+                      key={
+                        column._id
+                      }
+                      value={
+                        column._id
+                      }
+                    >
+                      {
+                        column.name
+                      }
+                    </option>
+                  )
+                )}
               </select>
             </div>
           </div>
+
           <div className="field-grid">
-            <div className="field"><label>Due date</label><input type="date" value={form.due} onChange={(e) => update('due', e.target.value)} /></div>
             <div className="field">
-              <label>Assignee</label>
-              <select value={form.assignee} onChange={(e) => update('assignee', e.target.value)}>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <label>
+                Due date
+              </label>
+
+              <input
+                type="date"
+                value={
+                  form.dueDate
+                }
+                onChange={(e) =>
+                  update(
+                    "dueDate",
+                    e.target.value
+                  )
+                }
+              />
+            </div>
+
+            <div className="field">
+              <label>
+                Assignee
+              </label>
+
+              <select
+                value={
+                  form.assignedTo
+                }
+                onChange={(e) =>
+                  update(
+                    "assignedTo",
+                    e.target.value
+                  )
+                }
+              >
+                <option value="">
+                  Unassigned
+                </option>
+
+                {users.map(
+                  (user) => {
+                    const userId =
+                      user._id ||
+                      user.id;
+
+                    return (
+                      <option
+                        key={
+                          userId
+                        }
+                        value={
+                          userId
+                        }
+                      >
+                        {
+                          user.name
+                        }
+                      </option>
+                    );
+                  }
+                )}
               </select>
             </div>
           </div>
-          <div className="field"><label>Labels (comma separated)</label><input type="text" placeholder="Frontend, Bug, Design" value={form.labels} onChange={(e) => update('labels', e.target.value)} /></div>
-          <div className="field"><label>Attachments</label><div className="upload-box">📎 Drop files here or click to upload (demo only)</div></div>
         </div>
+
         <div className="modal-foot">
-          <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-          <button className="btn btn-gold" onClick={handleSave}>Save task</button>
+          <button
+            className="btn btn-ghost"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+
+          <button
+            className="btn btn-gold"
+            onClick={
+              handleSave
+            }
+            disabled={saving}
+          >
+            {saving
+              ? "Saving..."
+              : "Save task"}
+          </button>
         </div>
       </div>
     </div>
