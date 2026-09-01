@@ -139,6 +139,26 @@ export const updateMemberRole = async (
   return data;
 };
 
+export const acceptTeamInvitation = async (token) => {
+  const response = await fetch(
+    `${API_URL}/invitations/${token}/accept`,
+    {
+      method: "POST",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to accept invitation"
+    );
+  }
+
+  return data;
+};
+
 export const getTeamInvitations = async (teamId) => {
   const response = await fetch(
     `http://localhost:5000/api/teams/${teamId}/invitations`,

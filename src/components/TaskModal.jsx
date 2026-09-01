@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -12,7 +13,41 @@ const EMPTY = {
   columnId: "",
   dueDate: "",
   assignedTo: "",
+  labels: "",
+  attachments: "",
 };
+
+function getUserId(user) {
+  if (!user) {
+    return "";
+  }
+
+  if (typeof user === "string") {
+    return user;
+  }
+
+  return user._id || user.id || "";
+}
+
+function addUniqueUser(map, user) {
+  if (!user || typeof user !== "object") {
+    return;
+  }
+
+  const id = getUserId(user);
+
+  if (!id) {
+    return;
+  }
+
+  const existing = map.get(id) || {};
+
+  map.set(id, {
+    ...existing,
+    ...user,
+    _id: user._id || existing._id || id,
+  });
+}
 
 export default function TaskModal({
   editingTaskId,
@@ -21,13 +56,16 @@ export default function TaskModal({
   onClose,
 }) {
   const {
-    users,
     tasks,
     currentUser,
+    boardById,
     columnsForBoard,
     saveTask,
     toast,
   } = useApp();
+
+  const board =
+    boardById(currentBoardId);
 
   const columns =
     columnsForBoard(
@@ -39,6 +77,103 @@ export default function TaskModal({
 
   const [saving, setSaving] =
     useState(false);
+
+  const assignableUsers =
+    useMemo(() => {
+      const userMap =
+        new Map();
+
+      if (!board) {
+        addUniqueUser(
+          userMap,
+          currentUser
+        );
+
+        return Array.from(
+          userMap.values()
+        );
+      }
+
+      const team =
+        board.team;
+
+      const isTeamBoard =
+        team &&
+        typeof team ===
+          "object";
+
+      if (!isTeamBoard) {
+        if (
+          board.createdBy &&
+          typeof board.createdBy ===
+            "object"
+        ) {
+          addUniqueUser(
+            userMap,
+            board.createdBy
+          );
+        } else {
+          addUniqueUser(
+            userMap,
+            currentUser
+          );
+        }
+      } else {
+        addUniqueUser(
+          userMap,
+          team.owner
+        );
+
+        if (
+          Array.isArray(
+            team.members
+          )
+        ) {
+          team.members.forEach(
+            (member) => {
+              addUniqueUser(
+                userMap,
+                member.user
+              );
+            }
+          );
+        }
+
+        addUniqueUser(
+          userMap,
+          board.createdBy
+        );
+      }
+
+      if (editingTaskId) {
+        const editingTask =
+          tasks.find(
+            (task) =>
+              task._id ===
+              editingTaskId
+          );
+
+        if (
+          editingTask?.assignedTo &&
+          typeof editingTask.assignedTo ===
+            "object"
+        ) {
+          addUniqueUser(
+            userMap,
+            editingTask.assignedTo
+          );
+        }
+      }
+
+      return Array.from(
+        userMap.values()
+      );
+    }, [
+      board,
+      currentUser,
+      editingTaskId,
+      tasks,
+    ]);
 
   useEffect(() => {
     if (editingTaskId) {
@@ -95,6 +230,24 @@ export default function TaskModal({
 
         assignedTo:
           assignedTo || "",
+
+        labels:
+          Array.isArray(
+            task.labels
+          )
+            ? task.labels.join(
+                ", "
+              )
+            : "",
+
+        attachments:
+          Array.isArray(
+            task.attachments
+          )
+            ? task.attachments.join(
+                "\n"
+              )
+            : "",
       });
 
       return;
@@ -105,6 +258,18 @@ export default function TaskModal({
       columns[0]?._id ||
       "";
 
+    const currentUserId =
+      getUserId(
+        currentUser
+      );
+
+    const canAssignCurrentUser =
+      assignableUsers.some(
+        (user) =>
+          getUserId(user) ===
+          currentUserId
+      );
+
     setForm({
       ...EMPTY,
 
@@ -112,9 +277,9 @@ export default function TaskModal({
         defaultColumnId,
 
       assignedTo:
-        currentUser?._id ||
-        currentUser?.id ||
-        "",
+        canAssignCurrentUser
+          ? currentUserId
+          : "",
     });
   }, [
     editingTaskId,
@@ -123,6 +288,7 @@ export default function TaskModal({
     tasks,
     columns,
     currentUser,
+    assignableUsers,
   ]);
 
   function update(
@@ -155,6 +321,53 @@ export default function TaskModal({
       return;
     }
 
+    const labels =
+      form.labels
+        .split(",")
+        .map((label) =>
+          label.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 10);
+
+    const attachments =
+      form.attachments
+        .split("\n")
+        .map((attachment) =>
+          attachment.trim()
+        )
+        .filter(Boolean)
+        .slice(0, 10);
+
+    const invalidAttachment =
+      attachments.find(
+        (attachment) => {
+          try {
+            const url =
+              new URL(
+                attachment
+              );
+
+            return ![
+              "http:",
+              "https:",
+            ].includes(
+              url.protocol
+            );
+          } catch {
+            return true;
+          }
+        }
+      );
+
+    if (invalidAttachment) {
+      toast(
+        "Attachments must be valid http or https URLs"
+      );
+
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -177,6 +390,10 @@ export default function TaskModal({
         dueDate:
           form.dueDate ||
           null,
+
+        labels,
+
+        attachments,
       };
 
       await saveTask(
@@ -253,6 +470,70 @@ export default function TaskModal({
                 )
               }
             />
+          </div>
+
+          <div className="field">
+            <label>
+              Labels
+            </label>
+
+            <input
+              type="text"
+              placeholder="e.g. frontend, urgent, design"
+              value={
+                form.labels
+              }
+              onChange={(e) =>
+                update(
+                  "labels",
+                  e.target.value
+                )
+              }
+            />
+
+            <div
+              style={{
+                fontSize: 11,
+                color:
+                  "var(--text-faint)",
+                marginTop: 5,
+              }}
+            >
+              Separate labels with commas
+            </div>
+          </div>
+
+          <div className="field">
+            <label>
+              Attachments
+            </label>
+
+            <textarea
+              placeholder={
+                "https://example.com/design.pdf\nhttps://example.com/document"
+              }
+              value={
+                form.attachments
+              }
+              onChange={(e) =>
+                update(
+                  "attachments",
+                  e.target.value
+                )
+              }
+              rows={3}
+            />
+
+            <div
+              style={{
+                fontSize: 11,
+                color:
+                  "var(--text-faint)",
+                marginTop: 5,
+              }}
+            >
+              Add one URL per line. Maximum 10 attachments.
+            </div>
           </div>
 
           <div className="field-grid">
@@ -366,11 +647,12 @@ export default function TaskModal({
                   Unassigned
                 </option>
 
-                {users.map(
+                {assignableUsers.map(
                   (user) => {
                     const userId =
-                      user._id ||
-                      user.id;
+                      getUserId(
+                        user
+                      );
 
                     return (
                       <option
@@ -381,9 +663,9 @@ export default function TaskModal({
                           userId
                         }
                       >
-                        {
-                          user.name
-                        }
+                        {user.name ||
+                          user.email ||
+                          "Unknown User"}
                       </option>
                     );
                   }

@@ -209,11 +209,29 @@ export default function TaskDrawer({ taskId, onClose, onEdit, onDeleted }) {
             <div>
               {attachments.length ? (
                 attachments.map((attachment) => (
-                  <div className="attachment-row" key={attachment}>
+                  <a
+                    className="attachment-row"
+                    key={attachment}
+                    href={attachment}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      textDecoration: "none",
+                      color: "inherit",
+                    }}
+                  >
                     <div className="a-icon">📄</div>
 
-                    {attachment}
-                  </div>
+                    <span
+                      style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {attachment}
+                    </span>
+                  </a>
                 ))
               ) : (
                 <div

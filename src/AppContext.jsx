@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { USERS, TEAMS, ACTIVITY, NOTIFICATIONS } from "./data/dummyData";
+import { ACTIVITY, NOTIFICATIONS } from "./data/dummyData";
 
 import {
   loginUser,
@@ -23,7 +23,12 @@ import {
   deleteBoard as deleteBoardApi,
 } from "./api/boardApi";
 
-import { getColumns } from "./api/columnApi";
+import {
+  getColumns,
+  createColumn as createColumnApi,
+  updateColumn as updateColumnApi,
+  deleteColumn as deleteColumnApi,
+} from "./api/columnApi";
 
 import {
   getTasks,
@@ -55,6 +60,8 @@ export function AppProvider({ children }) {
   const [toastMsg, setToastMsg] = useState("");
 
   const [toastShow, setToastShow] = useState(false);
+
+  const users = collectRealUsers({ currentUser, boards, tasks });
 
   const [theme, setTheme] = useState(
     () => localStorage.getItem("syncboard-theme") || "dark",
@@ -116,8 +123,14 @@ export function AppProvider({ children }) {
   }, []);
 
   const userById = useCallback(
-    (id) => USERS.find((user) => user.id === id || user._id === id),
-    [],
+    (id) => {
+      if (!id) {
+        return null;
+      }
+
+      return users.find((user) => getUserId(user) === id) || null;
+    },
+    [users],
   );
 
   const boardById = useCallback(
@@ -126,8 +139,26 @@ export function AppProvider({ children }) {
   );
 
   const teamById = useCallback(
-    (id) => TEAMS.find((team) => team.id === id || team._id === id),
-    [],
+    (id) => {
+      if (!id) {
+        return null;
+      }
+
+      for (const board of boards) {
+        const team = board.team;
+
+        if (
+          team &&
+          typeof team === "object" &&
+          (team._id === id || team.id === id)
+        ) {
+          return team;
+        }
+      }
+
+      return null;
+    },
+    [boards],
   );
 
   const tasksForBoard = useCallback(
@@ -183,6 +214,79 @@ export function AppProvider({ children }) {
         return [];
       } finally {
         setColumnsLoading(false);
+      }
+    },
+    [toast],
+  );
+
+  const addColumn = useCallback(
+    async (boardId, name) => {
+      try {
+        const response = await createColumnApi(boardId, {
+          name: name.trim(),
+        });
+
+        const newColumn = response.column || response;
+
+        setColumnsByBoard((prev) => ({
+          ...prev,
+          [boardId]: [...(prev[boardId] || []), newColumn],
+        }));
+
+        toast("Column created");
+
+        return newColumn;
+      } catch (error) {
+        toast(error.message);
+        throw error;
+      }
+    },
+    [toast],
+  );
+
+  const renameColumn = useCallback(
+    async (boardId, columnId, name) => {
+      try {
+        const response = await updateColumnApi(columnId, {
+          name: name.trim(),
+        });
+
+        const updatedColumn = response.column || response;
+
+        setColumnsByBoard((prev) => ({
+          ...prev,
+          [boardId]: (prev[boardId] || []).map((column) =>
+            column._id === columnId ? updatedColumn : column,
+          ),
+        }));
+
+        toast("Column renamed");
+
+        return updatedColumn;
+      } catch (error) {
+        toast(error.message);
+        throw error;
+      }
+    },
+    [toast],
+  );
+
+  const removeColumn = useCallback(
+    async (boardId, columnId) => {
+      try {
+        await deleteColumnApi(columnId);
+
+        setColumnsByBoard((prev) => ({
+          ...prev,
+          [boardId]: (prev[boardId] || []).filter(
+            (column) => column._id !== columnId,
+          ),
+        }));
+
+        toast("Column deleted");
+      } catch (error) {
+        toast(error.message);
+        throw error;
       }
     },
     [toast],
@@ -311,6 +415,63 @@ export function AppProvider({ children }) {
   useEffect(() => {
     localStorage.setItem("syncboard-compact-sidebar", String(compactSidebar));
   }, [compactSidebar]);
+
+  useEffect(() => {
+  async function loadAllBoardTasks() {
+    if (!currentUser) {
+      setTasks([]);
+      return;
+    }
+
+    if (!boards.length) {
+      return;
+    }
+
+    try {
+      setTasksLoading(true);
+
+      const results = await Promise.all(
+        boards.map(async (board) => {
+          const boardId = board._id;
+
+          try {
+            const data = await getTasks(boardId);
+
+            return data.tasks || data || [];
+          } catch (error) {
+            console.error(
+              `FAILED TO LOAD TASKS FOR BOARD ${boardId}:`,
+              error
+            );
+
+            return [];
+          }
+        })
+      );
+
+      const allTasks = results.flat();
+
+      setTasks(allTasks);
+
+      console.log(
+        "ALL WORKSPACE TASKS:",
+        allTasks
+      );
+    } catch (error) {
+      console.error(
+        "FAILED TO LOAD ALL TASKS:",
+        error
+      );
+    } finally {
+      setTasksLoading(false);
+    }
+  }
+
+  loadAllBoardTasks();
+}, [
+  currentUser,
+  boards,
+]);
 
   useEffect(() => {
     return () => {
@@ -548,8 +709,7 @@ export function AppProvider({ children }) {
     register,
     logout,
 
-    users: USERS,
-    teams: TEAMS,
+    users,
 
     boards,
     boardsLoading,
@@ -559,10 +719,12 @@ export function AppProvider({ children }) {
     tasksForBoard,
     loadTasks,
 
-    columnsByBoard,
-    columnsLoading,
     columnsForBoard,
     loadColumns,
+    columnsLoading,
+    addColumn,
+    renameColumn,
+    removeColumn,
 
     ACTIVITY,
     NOTIFICATIONS,
@@ -596,6 +758,68 @@ export function AppProvider({ children }) {
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+function getUserId(user) {
+  if (!user) return null;
+
+  if (typeof user === "string") {
+    return user;
+  }
+
+  return user._id || user.id || null;
+}
+
+function collectRealUsers({ currentUser, boards, tasks }) {
+  const userMap = new Map();
+
+  function addUser(user) {
+    if (!user || typeof user !== "object") {
+      return;
+    }
+
+    const id = getUserId(user);
+
+    if (!id) {
+      return;
+    }
+
+    const existing = userMap.get(id) || {};
+
+    userMap.set(id, {
+      ...existing,
+      ...user,
+      _id: user._id || existing._id || id,
+    });
+  }
+
+  addUser(currentUser);
+
+  boards.forEach((board) => {
+    addUser(board.createdBy);
+
+    if (board.team && typeof board.team === "object") {
+      addUser(board.team.owner);
+
+      if (Array.isArray(board.team.members)) {
+        board.team.members.forEach((member) => {
+          addUser(member.user);
+        });
+      }
+    }
+  });
+
+  tasks.forEach((task) => {
+    addUser(task.assignedTo);
+    addUser(task.createdBy);
+
+    if (Array.isArray(task.comments)) {
+      task.comments.forEach((comment) => {
+        addUser(comment.user);
+      });
+    }
+  });
+
+  return Array.from(userMap.values());
 }
 
 export const updateCurrentUser = async (updates) => {
