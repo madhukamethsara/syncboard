@@ -23,3 +23,7 @@ export function logoutUser() {
     method: "POST",
   });
 }
+
+export function verifyEmail(token) {
+  return apiRequest(`/auth/verify-email/${token}`);
+}

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useApp } from "../AppContext";
 
-export default function Register({ goto, afterAuth }) {
-  const { register, login, toast } = useApp();
+export default function Register({ goto }) {
+  const { register, toast } = useApp();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,12 +17,14 @@ export default function Register({ goto, afterAuth }) {
     }
 
     try {
+      // The backend requires email verification before login is allowed,
+      // so we can't log the user in right after registering here - that
+      // call would always fail with a 403 "please verify your email"
+      // error. Send them to check their inbox and log in once verified.
       await register(name.trim(), email.trim(), password);
 
-      await login(email.trim(), password);
-
-      toast("Account created successfully");
-      afterAuth();
+      toast("Account created! Check your email to verify it, then log in.");
+      goto("login");
     } catch (error) {
       toast(error.message);
     }

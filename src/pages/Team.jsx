@@ -12,7 +12,7 @@ import {
 } from "../api/teamApi";
 
 export default function Team() {
-  const { ACTIVITY, toast } = useApp();
+  const { toast } = useApp();
 
   const [teams, setTeams] = useState([]);
   const [currentTeamId, setCurrentTeamId] = useState(null);
@@ -458,36 +458,6 @@ export default function Team() {
           )}
         </div>
       )}
-
-      {/* TEAM ACTIVITY */}
-      <div
-        className="panel"
-        style={{
-          marginTop: 16,
-        }}
-      >
-        <h3>Team activity</h3>
-
-        <div>
-          {ACTIVITY.map((a, i) => (
-            <div
-              className="activity-row"
-              key={i}
-            >
-              <div className="activity-time mono">
-                {a.time}
-              </div>
-
-              <div
-                className="activity-text"
-                dangerouslySetInnerHTML={{
-                  __html: `${a.user} ${a.text}`,
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* CREATE TEAM POPUP */}
       {createOpen && (
