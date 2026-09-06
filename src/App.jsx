@@ -6,7 +6,7 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
-import AcceptInvitation from './pages/AcceptInvitation';
+import JoinTeam from './pages/JoinTeam';
 
 import AppShell from './components/AppShell';
 import Toast from './components/Toast';
@@ -22,15 +22,16 @@ import Toast from './components/Toast';
 
 function readEmailLinkFromUrl() {
   const path = window.location.pathname;
+  const params = new URLSearchParams(window.location.search);
 
   const verifyMatch = path.match(/^\/verify-email\/([^/]+)\/?$/);
   if (verifyMatch) {
     return { view: 'verify-email', token: verifyMatch[1] };
   }
 
-  const inviteMatch = path.match(/^\/invitations\/([^/]+)\/accept\/?$/);
-  if (inviteMatch) {
-    return { view: 'accept-invite', token: inviteMatch[1] };
+  if (path === '/join' || path.match(/^\/join\/?$/)) {
+    const code = params.get('code') || '';
+    return { view: 'join', joinCode: code };
   }
 
   return null;
@@ -48,8 +49,7 @@ function Root() {
 
   const [view, setView] = useState(initialLink ? initialLink.view : 'landing');
   const [emailLinkToken] = useState(initialLink ? initialLink.token : null);
-  // Kept separate from `view` so that navigating to the login page (view
-  // becomes 'login') doesn't lose track of "came from an invite link".
+  const [emailLinkJoinCode] = useState(initialLink ? initialLink.joinCode : null);
   const [emailLinkType] = useState(initialLink ? initialLink.view : null);
 
   const {
@@ -76,10 +76,13 @@ function Root() {
   ========================================================= */
 
   function afterAuth() {
-    // If the user logged in from the "log in to accept" prompt on the
-    // invitation page, send them straight back there instead of the app.
-    if (emailLinkType === 'accept-invite' && emailLinkToken) {
-      setView('accept-invite');
+    if (emailLinkType === 'join' && emailLinkJoinCode) {
+      setView('join');
+      return;
+    }
+
+    if (emailLinkType === 'join') {
+      setView('join');
       return;
     }
 
@@ -118,7 +121,7 @@ function Root() {
 
     // Don't stomp on the verify-email / accept-invite screens just because
     // the user already has a valid session - they still need to see those.
-    if (view === 'verify-email' || view === 'accept-invite') {
+    if (view === 'verify-email' || view === 'join') {
       return;
     }
 
@@ -179,10 +182,13 @@ function Root() {
       )}
 
 
-      {/* Team invitation accept link */}
+      {/* Join Team via link or code */}
 
-      {view === 'accept-invite' && (
-        <AcceptInvitation token={emailLinkToken} goto={goto} />
+      {view === 'join' && (
+        <JoinTeam
+          initialCode={emailLinkJoinCode}
+          goto={goto}
+        />
       )}
 
 

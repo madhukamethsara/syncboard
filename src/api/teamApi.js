@@ -29,26 +29,19 @@ export const getTeamById = async (teamId) => {
 };
 
 export const createTeam = async (name) => {
-  const response = await fetch(
-    "http://localhost:5000/api/teams",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-      body: JSON.stringify({
-        name,
-      }),
-    }
-  );
+  const response = await fetch(`${API_URL}/teams`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ name }),
+  });
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to create team"
-    );
+    throw new Error(data.message || "Failed to create team");
   }
 
   return data;
@@ -88,19 +81,16 @@ export const deleteTeam = async (teamId) => {
   return data;
 };
 
-export const sendTeamInvitation = async (teamId, email, role) => {
+export const inviteByEmail = async (teamId, email) => {
   const response = await fetch(
-    `${API_URL}/teams/${teamId}/invitations`,
+    `${API_URL}/teams/${teamId}/invite`,
     {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({
-        email,
-        role,
-      }),
+      body: JSON.stringify({ email }),
     }
   );
 
@@ -108,6 +98,62 @@ export const sendTeamInvitation = async (teamId, email, role) => {
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to send invitation");
+  }
+
+  return data;
+};
+
+export const joinTeamByCode = async (code) => {
+  const response = await fetch(`${API_URL}/teams/join`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    credentials: "include",
+    body: JSON.stringify({ code }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to join team");
+  }
+
+  return data;
+};
+
+export const getJoinCode = async (teamId) => {
+  const response = await fetch(
+    `${API_URL}/teams/${teamId}/join-code`,
+    {
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to get join code");
+  }
+
+  return data;
+};
+
+export const regenerateJoinCode = async (teamId) => {
+  const response = await fetch(
+    `${API_URL}/teams/${teamId}/join-code/regenerate`,
+    {
+      method: "POST",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to regenerate join code"
+    );
   }
 
   return data;
@@ -134,45 +180,6 @@ export const updateMemberRole = async (
 
   if (!response.ok) {
     throw new Error(data.message || "Failed to update role");
-  }
-
-  return data;
-};
-
-export const acceptTeamInvitation = async (token) => {
-  const response = await fetch(
-    `${API_URL}/invitations/${token}/accept`,
-    {
-      method: "POST",
-      credentials: "include",
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to accept invitation"
-    );
-  }
-
-  return data;
-};
-
-export const getTeamInvitations = async (teamId) => {
-  const response = await fetch(
-    `http://localhost:5000/api/teams/${teamId}/invitations`,
-    {
-      credentials: "include",
-    }
-  );
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to load invitations"
-    );
   }
 
   return data;
