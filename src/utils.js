@@ -1,5 +1,5 @@
 export function priorityColor(p) {
-  return p === 'High' ? 'var(--rose)' : p === 'Medium' ? 'var(--gold)' : 'var(--green)';
+  return p === 'high' ? 'var(--rose)' : p === 'medium' ? 'var(--gold)' : 'var(--green)';
 }
 
 export function fmtDate(d) {

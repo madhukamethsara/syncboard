@@ -5,32 +5,35 @@ import { useApp } from "../AppContext";
 import {
   getTeams,
   getTeamById,
-  sendTeamInvitation,
+  inviteByEmail,
   updateMemberRole,
   createTeam,
-  getTeamInvitations,
+  getJoinCode,
+  regenerateJoinCode,
 } from "../api/teamApi";
 
 export default function Team() {
-  const { toast } = useApp();
+  const { currentUser, toast } = useApp();
 
   const [teams, setTeams] = useState([]);
   const [currentTeamId, setCurrentTeamId] = useState(null);
   const [team, setTeam] = useState(null);
-  const [invitations, setInvitations] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
   // INVITE MEMBER STATES
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("member");
   const [inviteLoading, setInviteLoading] = useState(false);
 
   // CREATE TEAM STATES
   const [createOpen, setCreateOpen] = useState(false);
   const [teamName, setTeamName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+
+  // JOIN CODE STATES
+  const [joinCode, setJoinCode] = useState(null);
+  const [joinCodeLoading, setJoinCodeLoading] = useState(false);
 
   // LOAD TEAMS
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function Team() {
       } else {
         setCurrentTeamId(null);
         setTeam(null);
-        setInvitations([]);
+        setJoinCode(null);
       }
     } catch (error) {
       console.error("Load teams error:", error);
@@ -72,23 +75,55 @@ export default function Team() {
       setTeam(data.team);
       setCurrentTeamId(teamId);
 
-      await loadInvitations(teamId);
+      const isOwner =
+        data.team.owner?._id === currentUser?._id ||
+        data.team.owner === currentUser?._id;
+
+      if (isOwner) {
+        await loadJoinCode(teamId);
+      } else {
+        setJoinCode(null);
+      }
     } catch (error) {
       console.error("Load team error:", error);
       toast(error.message || "Failed to load team");
     }
   };
 
-  // LOAD INVITATIONS
-  const loadInvitations = async (teamId) => {
+  // LOAD JOIN CODE (owner only)
+  const loadJoinCode = async (teamId) => {
     try {
-      const data = await getTeamInvitations(teamId);
-
-      setInvitations(data.invitations);
+      const data = await getJoinCode(teamId);
+      setJoinCode(data.joinCode);
     } catch (error) {
-      console.error("Load invitations error:", error);
+      console.error("Load join code error:", error);
+      setJoinCode(null);
+    }
+  };
 
-      setInvitations([]);
+  // REGENERATE JOIN CODE
+  const handleRegenerateJoinCode = async () => {
+    try {
+      setJoinCodeLoading(true);
+
+      const data = await regenerateJoinCode(currentTeamId);
+
+      setJoinCode(data.joinCode);
+
+      toast("Join code regenerated");
+    } catch (error) {
+      console.error("Regenerate join code error:", error);
+      toast(error.message || "Failed to regenerate code");
+    } finally {
+      setJoinCodeLoading(false);
+    }
+  };
+
+  // COPY JOIN CODE
+  const handleCopyJoinCode = () => {
+    if (joinCode) {
+      navigator.clipboard.writeText(joinCode);
+      toast("Join code copied");
     }
   };
 
@@ -109,12 +144,10 @@ export default function Team() {
       setTeamName("");
       setCreateOpen(false);
 
-      // RELOAD TEAMS
       const teamsData = await getTeams();
 
       setTeams(teamsData.teams);
 
-      // SELECT NEW TEAM
       if (data.team?._id) {
         await loadTeam(data.team._id);
       }
@@ -126,8 +159,8 @@ export default function Team() {
     }
   };
 
-  // SEND INVITATION
-  const handleSendInvitation = async () => {
+  // SEND INVITE BY EMAIL
+  const handleSendInvite = async () => {
     try {
       if (!inviteEmail.trim()) {
         toast("Please enter an email address");
@@ -141,20 +174,15 @@ export default function Team() {
 
       setInviteLoading(true);
 
-      const data = await sendTeamInvitation(
+      const data = await inviteByEmail(
         currentTeamId,
-        inviteEmail.trim(),
-        inviteRole
+        inviteEmail.trim()
       );
 
       toast(data.message || "Invitation sent");
 
       setInviteEmail("");
-      setInviteRole("member");
       setInviteOpen(false);
-
-      // RELOAD INVITATIONS
-      await loadInvitations(currentTeamId);
     } catch (error) {
       console.error("Invite error:", error);
       toast(error.message || "Failed to send invitation");
@@ -180,6 +208,10 @@ export default function Team() {
       toast(error.message || "Failed to update role");
     }
   };
+
+  const isOwner =
+    team?.owner?._id === currentUser?._id ||
+    team?.owner === currentUser?._id;
 
   // LOADING
   if (loading) {
@@ -304,7 +336,7 @@ export default function Team() {
               <div>
                 {team.members.map((member) => {
                   const user = member.user;
-                  const isOwner = member.role === "owner";
+                  const memberIsOwner = member.role === "owner";
 
                   return (
                     <div
@@ -364,7 +396,7 @@ export default function Team() {
                         <select
                           className="select-sm"
                           value={member.role}
-                          disabled={isOwner}
+                          disabled={memberIsOwner}
                           onChange={(e) =>
                             handleRoleChange(
                               member,
@@ -372,7 +404,7 @@ export default function Team() {
                             )
                           }
                         >
-                          {isOwner && (
+                          {memberIsOwner && (
                             <option value="owner">
                               Owner
                             </option>
@@ -396,65 +428,71 @@ export default function Team() {
         </div>
       </div>
 
-      {/* PENDING INVITATIONS */}
-      {team && (
+      {/* JOIN CODE (Owner only) */}
+      {team && isOwner && (
         <div
           className="panel"
           style={{
             marginTop: 16,
           }}
         >
-          <h3>Pending Invitations</h3>
+          <h3>Team Join Code</h3>
 
-          {invitations.length === 0 ? (
-            <p className="sub">
-              No pending invitations for this team.
-            </p>
-          ) : (
-            <div>
-              {invitations.map((invitation) => (
-                <div
-                  className="member-row"
-                  key={invitation._id}
-                >
+          <p className="sub">
+            Share this code with people you want to invite.
+            They can enter it at{" "}
+            <strong>/join</strong> to join your team.
+          </p>
 
-                  {/* INVITATION AVATAR */}
-                  <div
-                    className="avatar"
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {invitation.email
-                      ?.charAt(0)
-                      .toUpperCase()}
-                  </div>
+          {joinCode ? (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "monospace",
+                  fontSize: "1.4rem",
+                  letterSpacing: "0.2em",
+                  padding: "10px 20px",
+                  background: "var(--surface-2)",
+                  borderRadius: 8,
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {joinCode}
+              </div>
 
-                  {/* INVITATION INFORMATION */}
-                  <div className="member-info">
-                    <div className="m-name">
-                      {invitation.email}
-                    </div>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleCopyJoinCode}
+              >
+                Copy
+              </button>
 
-                    <div className="m-email">
-                      Invited as {invitation.role}
-                    </div>
-                  </div>
-
-                  {/* INVITATION STATUS */}
-                  <div className="m-actions">
-                    <span className="pill">
-                      Pending
-                    </span>
-                  </div>
-                </div>
-              ))}
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={handleRegenerateJoinCode}
+                disabled={joinCodeLoading}
+              >
+                {joinCodeLoading
+                  ? "Regenerating..."
+                  : "Regenerate"}
+              </button>
             </div>
+          ) : (
+            <button
+              className="btn btn-gold btn-sm"
+              onClick={handleRegenerateJoinCode}
+              disabled={joinCodeLoading}
+              style={{ marginTop: 8 }}
+            >
+              Generate Join Code
+            </button>
           )}
         </div>
       )}
@@ -535,8 +573,8 @@ export default function Team() {
             <h3>Invite Member</h3>
 
             <p className="sub">
-              Invite someone to join{" "}
-              <strong>{team?.name}</strong>.
+              Send a join code to{" "}
+              <strong>{team?.name}</strong> via email.
             </p>
 
             <div className="field">
@@ -549,26 +587,13 @@ export default function Team() {
                   setInviteEmail(e.target.value)
                 }
                 placeholder="member@example.com"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSendInvite();
+                  }
+                }}
               />
-            </div>
-
-            <div className="field">
-              <label>Role</label>
-
-              <select
-                value={inviteRole}
-                onChange={(e) =>
-                  setInviteRole(e.target.value)
-                }
-              >
-                <option value="member">
-                  Member
-                </option>
-
-                <option value="admin">
-                  Admin
-                </option>
-              </select>
             </div>
 
             <div
@@ -584,7 +609,6 @@ export default function Team() {
                 onClick={() => {
                   setInviteOpen(false);
                   setInviteEmail("");
-                  setInviteRole("member");
                 }}
                 disabled={inviteLoading}
               >
@@ -593,7 +617,7 @@ export default function Team() {
 
               <button
                 className="btn btn-gold"
-                onClick={handleSendInvitation}
+                onClick={handleSendInvite}
                 disabled={inviteLoading}
               >
                 {inviteLoading

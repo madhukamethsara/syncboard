@@ -253,10 +253,12 @@ export default function TaskModal({
       return;
     }
 
+    const isValidObjectId = (id) => /^[0-9a-fA-F]{24}$/.test(id);
+
     const defaultColumnId =
-      defaultStatus ||
-      columns[0]?._id ||
-      "";
+      (defaultStatus && isValidObjectId(defaultStatus))
+        ? defaultStatus
+        : columns[0]?._id || "";
 
     const currentUserId =
       getUserId(
@@ -308,6 +310,14 @@ export default function TaskModal({
     if (!title) {
       toast(
         "Task title is required"
+      );
+
+      return;
+    }
+
+    if (!currentBoardId) {
+      toast(
+        "Please select a board first"
       );
 
       return;
@@ -388,8 +398,9 @@ export default function TaskModal({
           null,
 
         dueDate:
-          form.dueDate ||
-          null,
+          form.dueDate
+            ? new Date(form.dueDate + "T00:00:00").toISOString()
+            : null,
 
         labels,
 
@@ -408,6 +419,7 @@ export default function TaskModal({
         "FAILED TO SAVE TASK:",
         error
       );
+      toast(error.message || "Failed to save task");
     } finally {
       setSaving(false);
     }
