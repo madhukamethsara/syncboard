@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { ACTIVITY, NOTIFICATIONS } from "./data/dummyData";
+
 
 import {
   loginUser,
