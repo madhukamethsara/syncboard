@@ -38,6 +38,9 @@ import {
   addTaskComment,
 } from "./api/taskApi";
 
+const ACTIVITY = [];
+const NOTIFICATIONS = [];
+
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
