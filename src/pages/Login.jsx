@@ -3,8 +3,8 @@ import { useApp } from "../AppContext";
 
 export default function Login({ goto, afterAuth }) {
   const { login, toast } = useApp();
-  const [email, setEmail] = useState("madhuka@loom.app");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showError, setShowError] = useState(false);
 
   async function handleLogin(e) {
