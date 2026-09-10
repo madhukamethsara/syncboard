@@ -26,7 +26,7 @@ function readEmailLinkFromUrl() {
 
   const verifyMatch = path.match(/^\/verify-email\/([^/]+)\/?$/);
   if (verifyMatch) {
-    return { view: 'verify-email', token: verifyMatch[1] };
+    return { view: 'verify-email', token: verifyMatch[1], email: params.get('email') || '' };
   }
 
   if (path === '/join' || path.match(/^\/join\/?$/)) {
@@ -49,6 +49,7 @@ function Root() {
 
   const [view, setView] = useState(initialLink ? initialLink.view : 'landing');
   const [emailLinkToken] = useState(initialLink ? initialLink.token : null);
+  const [emailLinkEmail] = useState(initialLink ? initialLink.email : null);
   const [emailLinkJoinCode] = useState(initialLink ? initialLink.joinCode : null);
   const [emailLinkType] = useState(initialLink ? initialLink.view : null);
 
@@ -178,7 +179,7 @@ function Root() {
       {/* Email verification link */}
 
       {view === 'verify-email' && (
-        <VerifyEmail token={emailLinkToken} goto={goto} />
+        <VerifyEmail token={emailLinkToken} email={emailLinkEmail} goto={goto} />
       )}
 
 

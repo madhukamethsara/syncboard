@@ -4,7 +4,7 @@ import { verifyEmail } from "../api/authApi";
 // Rendered when the URL is /verify-email/:token (the link sent by the
 // backend's verification email). Calls the API once on mount and shows
 // the result, then lets the user head to the login page.
-export default function VerifyEmail({ token, goto }) {
+export default function VerifyEmail({ token, email, goto }) {
   const [status, setStatus] = useState("checking"); // checking | success | error
   const [message, setMessage] = useState("");
 
@@ -13,7 +13,7 @@ export default function VerifyEmail({ token, goto }) {
 
     async function run() {
       try {
-        await verifyEmail(token);
+        await verifyEmail(token, email);
 
         if (!cancelled) {
           setStatus("success");
