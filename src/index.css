@@ -718,3 +718,137 @@ html[data-theme="light"] body {
   box-shadow: 0 0 0 3px var(--glow-gold);
 }
 
+
+/* ---------- OTP INPUT ---------- */
+.otp-input-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin: 24px 0;
+}
+
+.otp-input-box {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.4rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.otp-input-box:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--glow-gold);
+  transform: scale(1.05);
+}
+
+.otp-input-box.filled {
+  border-color: var(--teal);
+  background: var(--surface-3);
+}
+
+.otp-input-box.active {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--glow-gold);
+}
+
+.otp-input-box.error {
+  border-color: var(--rose);
+  background: rgba(226, 104, 124, 0.08);
+}
+
+.otp-input-box.success {
+  border-color: var(--green);
+  background: rgba(111, 194, 139, 0.12);
+}
+
+.otp-success-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.otp-helper {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.otp-helper:hover {
+  color: var(--teal);
+}
+
+.otp-loading {
+  display: flex;
+  justify-content: center;
+  margin: 32px 0;
+}
+
+.otp-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--surface-3);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.otp-success-title {
+  color: var(--green);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.otp-input-group.shake {
+  animation: shake 0.5s ease;
+}
+
+@keyframes successPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+.otp-input-box.success {
+  animation: successPop 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.auth-form h1 {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* ---------- BOARD COUNT ---------- */
+.board-count {
+  font-size: 13px;
+  color: var(--text-faint);
+  font-family: 'JetBrains Mono', monospace;
+}

@@ -1,3 +1,4 @@
+﻿import { useState } from "react";
 import { useApp } from "../AppContext";
 
 import Avatar from "../components/Avatar";
@@ -10,6 +11,8 @@ export default function Boards({ openBoard, openBoardModal }) {
     currentUser,
   } = useApp();
 
+  const [selectedTeam, setSelectedTeam] = useState("all");
+
   const palette = [
     "#E3A64A",
     "#4FB8AC",
@@ -17,6 +20,20 @@ export default function Boards({ openBoard, openBoardModal }) {
     "#E2687C",
     "#6FC28B",
   ];
+
+  const teams = [
+    ...new Map(
+      boards
+        .filter((b) => b.team)
+        .map((b) => [b.team._id, b.team])
+    ).values(),
+  ];
+
+  const filteredBoards = boards.filter((board) => {
+    if (selectedTeam === "all") return true;
+    if (selectedTeam === "personal") return !board.team;
+    return board.team?._id === selectedTeam;
+  });
 
   if (boardsLoading) {
     return (
@@ -48,9 +65,30 @@ export default function Boards({ openBoard, openBoardModal }) {
 
       </div>
 
+      <div className="filter-bar">
+        <select
+          className="select-sm"
+          value={selectedTeam}
+          onChange={(e) => setSelectedTeam(e.target.value)}
+        >
+          <option value="all">All Teams</option>
+          <option value="personal">Personal</option>
+          {teams.map((team) => (
+            <option key={team._id} value={team._id}>
+              {team.name}
+            </option>
+          ))}
+        </select>
+
+        <span className="board-count">
+          {filteredBoards.length}{" "}
+          {filteredBoards.length === 1 ? "board" : "boards"}
+        </span>
+      </div>
+
       <div className="grid-3">
 
-        {boards.map((b, index) => {
+        {filteredBoards.map((b, index) => {
           const boardId = b._id;
 
           const pct = boardProgress(boardId);
@@ -110,7 +148,7 @@ export default function Boards({ openBoard, openBoardModal }) {
               <div className="bc-meta">
 
                 <span>
-                  {team?.name || "Team"}
+                  {team?.name || "Personal"}
                 </span>
 
                 <div className="avatar-stack">
@@ -139,6 +177,12 @@ export default function Boards({ openBoard, openBoardModal }) {
       {!boards.length && (
         <p className="sub">
           No boards yet. Create your first board.
+        </p>
+      )}
+
+      {boards.length > 0 && filteredBoards.length === 0 && (
+        <p className="sub">
+          No boards found for this filter.
         </p>
       )}
 
