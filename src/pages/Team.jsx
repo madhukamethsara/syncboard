@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 
 import { useApp } from "../AppContext";
 
@@ -331,6 +331,13 @@ export default function Team() {
             <>
               <h3>
                 Members — <span>{team.name}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => loadTeam(currentTeamId)}
+                  style={{ marginLeft: "auto" }}
+                >
+                  &#x21bb; Refresh
+                </button>
               </h3>
 
               <div>
@@ -471,7 +478,18 @@ export default function Team() {
                 className="btn btn-ghost btn-sm"
                 onClick={handleCopyJoinCode}
               >
-                Copy
+                Copy Code
+              </button>
+
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const link = `${window.location.origin}/join?code=${joinCode}`;
+                  navigator.clipboard.writeText(link);
+                  toast("Invite link copied!");
+                }}
+              >
+                Copy Invite Link
               </button>
 
               <button

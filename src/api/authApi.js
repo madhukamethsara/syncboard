@@ -24,6 +24,7 @@ export function logoutUser() {
   });
 }
 
-export function verifyEmail(token) {
-  return apiRequest(`/auth/verify-email/${token}`);
+export function verifyEmail(token, email) {
+  const query = email ? `?email=${encodeURIComponent(email)}` : '';
+  return apiRequest(`/auth/verify-email/${token}${query}`);
 }

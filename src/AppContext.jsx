@@ -1,4 +1,4 @@
-import {
+﻿import {
   createContext,
   useCallback,
   useContext,
@@ -77,6 +77,12 @@ export function AppProvider({ children }) {
   const [compactSidebar, setCompactSidebar] = useState(
     () => localStorage.getItem("syncboard-compact-sidebar") === "true",
   );
+
+  const [boardsRefreshKey, setBoardsRefreshKey] = useState(0);
+
+  const refreshBoards = useCallback(() => {
+    setBoardsRefreshKey(k => k + 1);
+  }, []);
 
   const toastTimer = useRef(null);
 
@@ -378,7 +384,7 @@ export function AppProvider({ children }) {
     }
 
     loadBoards();
-  }, [currentUser]);
+  }, [currentUser, boardsRefreshKey]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -758,6 +764,8 @@ export function AppProvider({ children }) {
 
     compactSidebar,
     setCompactSidebar,
+
+    refreshBoards,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
